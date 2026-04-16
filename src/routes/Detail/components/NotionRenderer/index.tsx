@@ -1,6 +1,5 @@
 import dynamic from "next/dynamic"
 import Image from "next/image"
-import Link from "next/link"
 import { ExtendedRecordMap } from "notion-types"
 import useScheme from "src/hooks/useScheme"
 
@@ -59,13 +58,7 @@ type Props = {
 
 const NotionRenderer: FC<Props> = ({ recordMap }) => {
   const [scheme] = useScheme()
-  const hasRecordMap =
-    !!recordMap &&
-    typeof recordMap === "object" &&
-    !!recordMap.block &&
-    Object.keys(recordMap.block).length > 0
-
-  if (!hasRecordMap) return null
+  if (!recordMap) return null
 
   return (
     <StyledWrapper>
@@ -79,7 +72,6 @@ const NotionRenderer: FC<Props> = ({ recordMap }) => {
           Modal,
           Pdf,
           nextImage: Image,
-          nextLink: Link,
         }}
         mapPageUrl={mapPageUrl}
       />
