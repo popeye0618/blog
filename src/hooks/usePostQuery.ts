@@ -6,8 +6,9 @@ import { PostDetail } from "src/types"
 const usePostQuery = () => {
   const router = useRouter()
   const { slug } = router.query
+  const normalizedSlug = Array.isArray(slug) ? slug[0] : slug
   const { data } = useQuery<PostDetail>({
-    queryKey: queryKey.post(`${slug}`),
+    queryKey: queryKey.post(normalizedSlug ?? ""),
     enabled: false,
   })
 

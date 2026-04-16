@@ -47,9 +47,10 @@ const Modal = dynamic(
 )
 
 const mapPageUrl = (id?: string) => {
-  if (!id) return "https://www.notion.so"
-
-  return "https://www.notion.so/" + id.replace(/-/g, "")
+  const normalizedId = typeof id === "string" ? id.split("-").join("") : ""
+  return normalizedId
+    ? `https://www.notion.so/${normalizedId}`
+    : "https://www.notion.so"
 }
 
 type Props = {
@@ -58,6 +59,14 @@ type Props = {
 
 const NotionRenderer: FC<Props> = ({ recordMap }) => {
   const [scheme] = useScheme()
+  const hasRecordMap =
+    !!recordMap &&
+    typeof recordMap === "object" &&
+    !!recordMap.block &&
+    Object.keys(recordMap.block).length > 0
+
+  if (!hasRecordMap) return null
+
   return (
     <StyledWrapper>
       <_NotionRenderer

@@ -28,7 +28,8 @@ export const getStaticPaths = async () => {
 }
 
 export const getStaticProps: GetStaticProps = async (context) => {
-  const slug = context.params?.slug
+  const slugParam = context.params?.slug
+  const slug = Array.isArray(slugParam) ? slugParam[0] : slugParam
 
   const posts = await getPosts()
   const feedPosts = filterPosts(posts)
@@ -36,9 +37,16 @@ export const getStaticProps: GetStaticProps = async (context) => {
 
   const detailPosts = filterPosts(posts, filter)
   const postDetail = detailPosts.find((t: any) => t.slug === slug)
-  const recordMap = await getRecordMap(postDetail?.id!)
+  if (!slug || !postDetail?.id) {
+    return {
+      notFound: true,
+      revalidate: CONFIG.revalidateTime,
+    }
+  }
 
-  await queryClient.prefetchQuery(queryKey.post(`${slug}`), () => ({
+  const recordMap = await getRecordMap(postDetail.id)
+
+  await queryClient.prefetchQuery(queryKey.post(slug), () => ({
     ...postDetail,
     recordMap,
   }))
@@ -54,7 +62,7 @@ export const getStaticProps: GetStaticProps = async (context) => {
 const DetailPage: NextPageWithLayout = () => {
   const post = usePostQuery()
 
-  if (!post) return <CustomError />
+  if (!post?.id || !post?.slug || !post?.recordMap?.block) return <CustomError />
 
   const image =
     post.thumbnail ??
