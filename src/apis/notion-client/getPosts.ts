@@ -17,12 +17,14 @@ export const getPosts = async () => {
 
   const response = await api.getPage(id)
   id = idToUuid(id)
-  const collectionValue = Object.values(response.collection)[0]?.value as any
+  const collectionValue = Object.values(response.collection || {})[0]
+    ?.value as any
   const collection = collectionValue?.value ?? collectionValue
-  const block = response.block
+  let block = response.block || ({} as any)
   const schema = collection?.schema
 
-  const blockValue = (block[id].value as any)?.value ?? block[id].value
+  const blockEntry = block[id]?.value as any
+  const blockValue = blockEntry?.value ?? blockEntry
   const rawMetadata = blockValue
 
   // Check Type
@@ -33,20 +35,51 @@ export const getPosts = async () => {
     return []
   } else {
     // Construct Data
-    const pageIds = getAllPageIds(response)
+    let pageIds = getAllPageIds(response)
+
+    // Fallback for workspaces where `collection_query` is empty.
+    if (!pageIds.length && rawMetadata?.collection_id && rawMetadata?.view_ids) {
+      const fallbackCollectionData: any = await api.getCollectionData(
+        rawMetadata.collection_id,
+        rawMetadata.view_ids[0],
+        {
+          limit: 10000,
+          searchQuery: "",
+          userTimeZone: "Asia/Seoul",
+          loadContentCover: false,
+        }
+      )
+
+      const fallbackIds =
+        fallbackCollectionData?.result?.reducerResults?.collection_group_results
+          ?.blockIds ||
+        fallbackCollectionData?.result?.collection_group_results?.blockIds ||
+        fallbackCollectionData?.result?.blockIds ||
+        []
+
+      pageIds = fallbackIds
+      block = { ...block, ...fallbackCollectionData?.recordMap?.block }
+    }
+
+    if (!pageIds.length) return []
+
     const data = []
     for (let i = 0; i < pageIds.length; i++) {
       const id = pageIds[i]
       const properties = (await getPageProperties(id, block, schema)) || null
+      if (!properties) continue
+
       // Add fullwidth, createdtime to properties
-      const pageBlockValue = (block[id].value as any)?.value ?? block[id].value
-      properties.createdTime = new Date(
-        pageBlockValue?.created_time
-      ).toString()
+      const pageBlockEntry = block[id]?.value as any
+      const pageBlockValue = pageBlockEntry?.value ?? pageBlockEntry
+      properties.createdTime = pageBlockValue?.created_time
+        ? new Date(pageBlockValue?.created_time).toString()
+        : ""
       properties.fullWidth =
         (pageBlockValue?.format as any)?.page_full_width ?? false
 
-      data.push(properties)
+      // Next.js static props serialization fails on `undefined` in nested objects.
+      data.push(JSON.parse(JSON.stringify(properties)))
     }
 
     // Sort by date
